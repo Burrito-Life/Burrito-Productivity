@@ -18,4 +18,3 @@ rootProject.name = "Burrito-Productivity"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":composeApp")
-include(":shared")
