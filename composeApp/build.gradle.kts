@@ -9,6 +9,8 @@ plugins {
 }
 
 kotlin {
+    applyDefaultHierarchyTemplate()
+
     androidTarget {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
@@ -27,6 +29,7 @@ kotlin {
         }
     }
     
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
     wasmJs {
         moduleName = "composeApp"
         browser {
@@ -63,14 +66,7 @@ kotlin {
                 implementation(libs.androidx.core.ktx)
             }
         }
-        val iosX64Main by getting
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by creating {
-            dependsOn(commonMain)
-            iosX64Main.dependsOn(this)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
+        val iosMain by getting {
             dependencies {
             }
         }
