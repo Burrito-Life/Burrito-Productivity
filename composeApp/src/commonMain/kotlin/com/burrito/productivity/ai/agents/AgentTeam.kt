@@ -15,8 +15,7 @@ class AgentTeam(
     // Rich data objects for the workflow
     data class InitialResponse(
         val triagedRequest: TriagedRequest,
-        val content: String,
-        val rawData: Map<String, Any> = emptyMap()
+        val content: String
     )
 
     data class Critique(
@@ -35,17 +34,17 @@ class AgentTeam(
         return triageAgent.triage(userInput)
     }
 
-    suspend fun respond(request: TriagedRequest): InitialResponse {
+    suspend fun respond(request: TriagedRequest, contextOverride: String? = null): InitialResponse {
         // The reasoner uses the triaged info to solve the problem
-        val response = reasonerAgent.solve(request.originalInput) 
-        // In a real app, we'd pass the specific 'model' from the request to the reasoner
+        val input = contextOverride ?: request.originalInput
+        val response = reasonerAgent.solve(input)
         return InitialResponse(
             triagedRequest = request,
             content = response.content
         )
     }
 
-    suspend fun critique(response: InitialResponse): Critique {
+    suspend fun critique(response: InitialResponse, criteria: String = "standard"): Critique {
         val validation = criticAgent.validate(CriticAgent.Proposal(response.content))
         return Critique(
             passed = validation.isValid,

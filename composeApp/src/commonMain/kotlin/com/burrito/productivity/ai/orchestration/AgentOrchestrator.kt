@@ -6,6 +6,7 @@ import com.burrito.productivity.ai.agents.ReasonerAgent
 import com.burrito.productivity.ai.agents.CriticAgent
 import com.burrito.productivity.ai.agents.TriageAgent
 import com.burrito.productivity.ai.agents.AgentTeam
+import com.burrito.productivity.ai.agents.WorkflowStep
 import com.burrito.productivity.ai.prompt.PersonaManager
 import com.burrito.productivity.ai.prompt.SystemPromptHydrator
 import com.burrito.productivity.ui.BurritoUI
@@ -32,35 +33,66 @@ class AgentOrchestrator(
     )
 
     fun process(input: String): Flow<UIEvent> = flow {
-        // 1. Triage
+        // 1. Triage: Get the plan
         emit(UIEvent("status", "Triaging Request...", InteractionState.Thinking))
         val triagedRequest = agentTeam.triage(input)
+        
+        // State variables to hold data between steps
+        var currentResponse: AgentTeam.InitialResponse? = null
+        var currentCritique: AgentTeam.Critique? = null
+        var finalRevised: AgentTeam.RevisedResponse? = null
 
-        // 2. Respond
-        emit(UIEvent("status", "Generating Response...", InteractionState.Thinking))
-        val initialResponse = agentTeam.respond(triagedRequest)
-
-        // 3. Critique
-        emit(UIEvent("status", "Critiquing Response...", InteractionState.Thinking))
-        val critique = agentTeam.critique(initialResponse)
-
-        // 4. Revise
-        emit(UIEvent("status", "Revising...", InteractionState.Thinking))
-        val revisedResponse = agentTeam.revise(initialResponse, critique)
-
-        // 5. UI Build
-        val responseUIRepresentation = BurritoUI.buildUIRepresentationForAIResponse(revisedResponse)
-
-        when (responseUIRepresentation) {
-            is BurritoUI.UIRepresentation.Text -> {
-                emit(UIEvent("response", responseUIRepresentation.content, InteractionState.Idle))
-            }
-            is BurritoUI.UIRepresentation.Component -> {
-                // In a real app, payload would be the serialized component data
-                emit(UIEvent("component", "Dynamic Component Rendered", InteractionState.Idle))
-            }
-            is BurritoUI.UIRepresentation.Error -> {
-                emit(UIEvent("error", responseUIRepresentation.message, InteractionState.Idle))
+        // 2. Execute Dynamic Workflow
+        for (step in triagedRequest.steps) {
+            when (step) {
+                is WorkflowStep.Reason -> {
+                    emit(UIEvent("status", "Reasoning...", InteractionState.Thinking))
+                    // If we haven't reasoned yet, do it. 
+                    // If we have a context override (e.g. from previous steps?), use it.
+                    currentResponse = agentTeam.respond(triagedRequest, step.contextOverride)
+                }
+                is WorkflowStep.Critique -> {
+                    if (currentResponse != null) {
+                        emit(UIEvent("status", "Critiquing...", InteractionState.Thinking))
+                        currentCritique = agentTeam.critique(currentResponse!!, step.criteria)
+                    } else {
+                        emit(UIEvent("error", "Cannot critique: no response generated yet", InteractionState.Idle))
+                    }
+                }
+                is WorkflowStep.Revise -> {
+                    if (currentResponse != null && currentCritique != null) {
+                        emit(UIEvent("status", "Revising...", InteractionState.Thinking))
+                        finalRevised = agentTeam.revise(currentResponse!!, currentCritique!!)
+                    } else {
+                         emit(UIEvent("error", "Cannot revise: missing response or critique", InteractionState.Idle))
+                    }
+                }
+                is WorkflowStep.GenerateUI -> {
+                    emit(UIEvent("status", "Building UI...", InteractionState.Thinking))
+                    // If we have a revised response, use it. Otherwise, fallback to initial response content if available
+                    val responseToRender = finalRevised ?: currentResponse?.let { 
+                        AgentTeam.RevisedResponse(it.content) 
+                    }
+                    
+                    if (responseToRender != null) {
+                         val uiRep = BurritoUI.buildUIRepresentationForAIResponse(responseToRender)
+                         // Emit the UI event based on the representation
+                         when (uiRep) {
+                            is BurritoUI.UIRepresentation.Text -> 
+                                emit(UIEvent("response", uiRep.content, InteractionState.Idle))
+                            is BurritoUI.UIRepresentation.Component -> 
+                                emit(UIEvent("component", "Dynamic Component (${step.style})", InteractionState.Idle))
+                            is BurritoUI.UIRepresentation.Error -> 
+                                emit(UIEvent("error", uiRep.message, InteractionState.Idle))
+                         }
+                    } else {
+                         emit(UIEvent("error", "Nothing to render", InteractionState.Idle))
+                    }
+                }
+                is WorkflowStep.ExecuteTool -> {
+                    emit(UIEvent("status", "Executing Tool: ${step.toolName}...", InteractionState.ExecutingTask))
+                    // Placeholder for tool execution
+                }
             }
         }
     }
