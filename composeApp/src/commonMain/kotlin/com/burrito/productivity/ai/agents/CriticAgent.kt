@@ -1,16 +1,22 @@
 package com.burrito.productivity.ai.agents
 
+import com.burrito.productivity.ai.agents.Types.ReasoningResponse
+import com.burrito.productivity.ai.agents.Types.CritiqueResponse
+import com.burrito.productivity.ai.agents.Types.RAGContext
+import com.burrito.productivity.ai.agents.Types.WorkflowStep
+
 /**
  * The guardrail agent that checks the Reasoner's output against the Persona Configuration.
  * Ensures safety, tone, and adherence to user constraints (e.g., brevity).
  */
-class CriticAgent {
-    data class Proposal(val content: String)
-    data class ValidationResult(val isValid: Boolean, val feedback: String)
+class CriticAgent implements WorkflowStep.Critique {
 
-    suspend fun validate(proposal: Proposal): ValidationResult {
-        // Placeholder logic for critique
-        // In a real implementation, this would compare the proposal against persona guidelines
-        return ValidationResult(isValid = true, feedback = "Looks good")
+    suspend fun critique(reasoningResponse: ReasoningResponse, criteria: String = "standard"): CritiqueResponse {
+        // TODO: Implement intelligent AI critique of initial AI reasoning response
+        return CritiqueResponse(
+            passed = true,
+            feedback = "Great!",
+            score = 10
+        )
     }
 }

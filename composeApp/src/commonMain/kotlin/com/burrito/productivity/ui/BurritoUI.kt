@@ -1,7 +1,7 @@
 package com.burrito.productivity.ui
 
 import com.burrito.productivity.ai.agents.AgentTeam.RevisedResponse
-import com.burrito.productivity.ai.orchestration.A2UIComponentRegistry
+import com.burrito.productivity.ai.ui.A2UIComponentRegistry
 
 /**
  * Standardizes the "look and feel" of the Burrito brand.

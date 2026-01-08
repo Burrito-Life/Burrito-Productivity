@@ -5,6 +5,7 @@ import com.burrito.productivity.ai.agents.TriageAgent.TriagedRequest
 /**
  * Manages the collaboration between different agents (Triage, Reasoner, Critic)
  * to produce a high-quality response.
+ * TODO: This class should also take an input of `ragContext` (some data structure of info from RAG retrieval) and `userSettings`. It should use the `userSettings` to help determine which AI models to use, so then the model selection can be passed as a parameter (along with the `ragContext`) to the Agent classes (which handle I/O with the model)
  */
 class AgentTeam(
     private val triageAgent: TriageAgent,
@@ -12,23 +13,7 @@ class AgentTeam(
     private val criticAgent: CriticAgent
 ) {
 
-    // Rich data objects for the workflow
-    data class InitialResponse(
-        val triagedRequest: TriagedRequest,
-        val content: String
-    )
-
-    data class Critique(
-        val passed: Boolean,
-        val feedback: String,
-        val score: Int
-    )
-
-    data class RevisedResponse(
-        val finalContent: String,
-        val a2ui: Map<String, Any>? = null, // A2UI data for UI hydration
-        val metadata: Map<String, Any> = emptyMap()
-    )
+    
 
     suspend fun triage(userInput: String): TriagedRequest {
         return triageAgent.triage(userInput)
