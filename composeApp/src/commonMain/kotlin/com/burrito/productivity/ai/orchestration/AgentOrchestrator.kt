@@ -2,32 +2,30 @@ package com.burrito.productivity.ai.orchestration
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import com.burrito.productivity.ai.agents.Types.ReasoningResponse
-import com.burrito.productivity.ai.agents.Types.CritiqueResponse
-import com.burrito.productivity.ai.agents.Types.RAGContext
+import com.burrito.productivity.ai.agents.ReasoningResponse
+import com.burrito.productivity.ai.agents.CritiqueResponse
+import com.burrito.productivity.ai.agents.RevisedResponse
 import com.burrito.productivity.ai.agents.ReasonerAgent
 import com.burrito.productivity.ai.agents.CriticAgent
 import com.burrito.productivity.ai.agents.TriageAgent
-import com.burrito.productivity.ai.agents.AgentOrchestrator
 import com.burrito.productivity.ai.agents.WorkflowStep
 import com.burrito.productivity.ai.prompt.PersonaManager
-import com.burrito.productivity.ai.prompt.SystemPromptHydrator
+import com.burrito.productivity.ai.prompt.PromptUtils
 import com.burrito.productivity.ui.BurritoUI
+import com.burrito.productivity.ai.context.SemanticContext
 
 /**
  * The Hub. Orchestrates the flow of data between the UI, the Brain (Agents), and Data.
  * Manages the AG-UI event stream.
- * TODO: Implement the use of SystemPromptHydrator. Make sure to make it flexible and as "intelligent" as possible.
  */
 class AgentOrchestrator(
     private val personaManager: PersonaManager,
-    private val promptHydrator: SystemPromptHydrator,
+    private val promptHydrator: (persona: UserPersona, context: SemanticContext) -> String,
     private val triageAgent: TriageAgent,
     private val reasoner: ReasonerAgent,
     private val critic: CriticAgent
 ) {
     // Placeholder for A2UI event structure
-    // TODO: Use the proper A2UI structure
     data class UIEvent(
         val type: String,
         val payload: String,
@@ -38,10 +36,16 @@ class AgentOrchestrator(
         // 1. Triage: Get the plan
         emit(UIEvent("status", "Triaging Request...", InteractionState.Thinking))
         val triagedRequest = triageAgent.triage(input)
+        // TODO: If userSettings
         
         // State variables to hold data between steps
-        var reasoningResponses: ReasoningResponse[] = []
-        var criticResponses: CritiqueResponse[] = []
+        val reasoningResponses = mutableListOf<ReasoningResponse>()
+        val criticResponses = mutableListOf<CritiqueResponse>()
+        var finalRevised: RevisedResponse? = null
+        
+        // TODO: Get actual semantic context
+        val semanticContext = SemanticContext(activeTask = "User Input: $input")
+        val systemPrompt = promptHydrator.compile(personaManager.getActivePersona(), semanticContext)
 
         // 2. Execute Dynamic Workflow
         val flowSteps = triagedRequest.steps
@@ -50,23 +54,32 @@ class AgentOrchestrator(
                 is WorkflowStep.Reason -> {
                     emit(UIEvent("status", "Thinking...", InteractionState.Thinking))
                     // If we have a context override (e.g. from previous steps?), use it.
-                    val input = contextOverride ?: request.originalInput
-                    val response = reasonerAgent.solve(input)
-                    reasoningResponses.add(reasoner.solve(triagedRequest, step.contextOverride))
+                    val stepInput = step.contextOverride ?: input
+                    val response = reasoner.solve(stepInput, systemPrompt)
+                    reasoningResponses.add(response)
                 }
-                is WorkflowStep.CritiqueResponse -> {
-                    if (reasoningResponses.last() != null) {
+                is WorkflowStep.Critique -> {
+                    val lastResponse = reasoningResponses.lastOrNull()
+                    if (lastResponse != null) {
                         emit(UIEvent("status", "Reviewing Response...", InteractionState.Thinking))
-                        critiqueResponses.add(critic.critique(reasoningResponses.last()!!, step.criteria))
-                        // TODO: Implement the ability for the CriticAgent to flag `reCritiqueRequired` for larger issues that need another review, which then gets checked here to add onto `flowSteps` - IMPORTANT: Prevent infinite loop, either with a hard limit or some smarter approach
+                        val critique = critic.critique(lastResponse, step.criteria)
+                        criticResponses.add(critique)
+                        // TODO: Implement the ability for the CriticAgent to flag `reCritiqueRequired` for larger issues that need another review
                     } else {
                         emit(UIEvent("error", "Cannot critique: no response generated yet", InteractionState.Idle))
                     }
                 }
                 is WorkflowStep.Revise -> {
+                    val currentResponse = reasoningResponses.lastOrNull()
+                    val currentCritique = criticResponses.lastOrNull()
+                    
                     if (currentResponse != null && currentCritique != null) {
                         emit(UIEvent("status", "Revising Response...", InteractionState.Thinking))
-                        reasoningResponses.add(reasoner.revise(currentResponse!!, currentCritique!!))
+                        val revised = reasoner.revise(currentResponse, currentCritique, systemPrompt)
+                        reasoningResponses.add(revised) // Add revised response as the new latest response
+                        
+                        // Also update finalRevised holder
+                        finalRevised = RevisedResponse(revised.text, revised.a2ui)
                     } else {
                         emit(UIEvent("error", "Cannot revise: missing response or critique", InteractionState.Idle))
                     }
@@ -74,8 +87,8 @@ class AgentOrchestrator(
                 is WorkflowStep.GenerateUI -> {
                     emit(UIEvent("status", "Building UI...", InteractionState.Thinking))
                     // If we have a revised response, use it. Otherwise, fallback to initial response content if available
-                    val responseToRender = finalRevised ?: currentResponse?.let { 
-                        AgentOrchestrator.RevisedResponse(it.content) 
+                    val responseToRender = finalRevised ?: reasoningResponses.lastOrNull()?.let { 
+                        RevisedResponse(it.text, it.a2ui)
                     }
                     
                     if (responseToRender != null) {

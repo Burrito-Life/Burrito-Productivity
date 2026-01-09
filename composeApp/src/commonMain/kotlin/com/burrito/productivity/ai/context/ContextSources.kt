@@ -1,0 +1,12 @@
+package com.burrito.productivity.ai.context
+
+enum ContextSources {
+    USER_PERSONA,
+    RAG_CONTEXT,
+    RAG_CONTEXT_BLOCKS,
+    RAG_CONTEXT_BLOCKS_EMAILS,
+    RAG_CONTEXT_BLOCKS_NOTES,
+    RAG_CONTEXT_BLOCKS_EVENTS,
+    RAG_CONTEXT_BLOCKS_TASKS,
+    SEMANTIC_CONTEXT
+}

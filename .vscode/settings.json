@@ -1,0 +1,16 @@
+{
+    "kotlin.languageServer.enabled": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/*.class": true,
+        "bin/": true,
+        "build/": true,
+        ".gradle/": true
+    },
+    "search.exclude": {
+        "**/build": true,
+        "**/.gradle": true
+    },
+    "CodeGPT.apiKey": "Ollama"
+}

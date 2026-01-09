@@ -1,6 +1,6 @@
 package com.burrito.productivity.ui
 
-import com.burrito.productivity.ai.agents.AgentTeam.RevisedResponse
+import com.burrito.productivity.ai.agents.Types.RevisedResponse
 import com.burrito.productivity.ai.ui.A2UIComponentRegistry
 
 /**

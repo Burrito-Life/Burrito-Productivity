@@ -14,4 +14,9 @@ data class CritiqueResponse(
 )
 
 // TODO: Implement this with properties that make sense - returned within the response from TriageAgent.triage() and passed to subsequent Agent calls - may need to be defined in its own file to avoid dependency issues
-data class RAGContext()
+data class RAGContext(val data: Map<String, Any> = emptyMap())
+
+data class RevisedResponse(
+    val finalContent: String,
+    val a2ui: Map<String, Any>? = null
+)

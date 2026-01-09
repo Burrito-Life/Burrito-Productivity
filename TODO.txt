@@ -1,0 +1,4 @@
+- TODO comments throughout the code...then the following items below:
+- @Taylor, reference Gemini Chat History to make prompts for Gemini Code Assist (or other code AI tool)
+- Utilize Koog (Kotlin's version of DSPy) for maximally DSPy-style code
+- Implement the in-app browser, and integrate our smart AI system
