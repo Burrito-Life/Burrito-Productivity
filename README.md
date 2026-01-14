@@ -24,6 +24,6 @@ Burrito Productivity is a modern, local-first productivity suite built for 2026 
 
 ## ⚖️ License
 
-This project is licensed under the **Apache License 2.0**. We chose this to ensure a healthy ecosystem with explicit patent grants for our AI contributors while keeping the project open and accessible. See [LICENSE]() for more details.
+This project is licensed under the **Apache License 2.0**. We chose this to ensure a healthy ecosystem with explicit patent grants for our AI contributors while keeping the project open and accessible. See [LICENSE](https://github.com/Burrito-Life/Burrito-Productivity/blob/main/LICENSE) for more details.
 
 ---
